@@ -1,12 +1,14 @@
 {
-  "skills": [
-    "Python",
-    "Java",
-    "OOP",
-    "Git",
-    "Frontend",
-    "UI/UX",
-    "Problem Solving",
-    "Communication"
-  ]
+    "skills": [
+        "Python",
+        "Java",
+        "UI/UX",
+        "Figma",
+        "Streamlit",
+        "MVC architecture",
+        "GitLab",
+        "IntelliJ IDEA",
+        "English",
+        "OOP"
+    ]
 }

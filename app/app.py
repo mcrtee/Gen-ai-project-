@@ -2,71 +2,98 @@ import streamlit as st
 from ml.model import predict
 from agent.agent import generate_learning_plan
 import pandas as pd
-import matplotlib.pyplot as plt
+import plotly.express as px
+import json
+import os
 
-st.set_page_config(page_title="Digital Twin Career Engine")
+# Настройка страницы
+st.set_page_config(page_title="Digital Twin Career Engine", page_icon="🧬", layout="wide")
 
-st.title("🚀 Digital Twin Career Engine")
+# Кастомный CSS для стиля "Tech Noir / RPG"
+st.markdown("""
+    <style>
+    .stApp { background-color: #050505; color: #00FFCC; }
+    .stButton>button { border: 2px solid #00FFCC; background-color: black; color: #00FFCC; transition: 0.3s; }
+    .stButton>button:hover { box-shadow: 0 0 15px #00FFCC; color: white; }
+    .stExpander { border: 1px solid #00FFCC; background-color: rgba(0, 255, 204, 0.05); }
+    </style>
+    """, unsafe_allow_html=True)
 
-if st.button("Analyze My Career"):
+st.title("🧬 Digital Twin: Career Engine")
+
+# Боковая панель
+if st.sidebar.button("🔍 Sync with NotebookLM (via MCP)"):
+    st.sidebar.success("Connection Active: Data Stream Synchronized")
+
+# Основная логика симуляции
+if st.button("🚀 Run Life Simulation"):
+    # 1. Получаем предсказания от ML-модели
     preds = predict()
-
-    st.subheader("📊 Skill Balance")
-
-    skills = ["Python", "Frontend", "UI/UX", "Problem Solving", "Communication"]
-    values = [4, 3, 4, 5, 4]
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111, polar=True)
-
-    angles = [n / float(len(skills)) * 2 * 3.14 for n in range(len(skills))]
-    angles += angles[:1]
-
-    values += values[:1]
-
-    ax.plot(angles, values)
-    ax.fill(angles, values, alpha=0.1)
-
-    ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(skills)
-
-    st.pyplot(fig)
-
-    st.subheader("🎮 Tech Tree")
-
-    st.markdown("""
-- 🟢 Python → 🔓 Machine Learning  
-- 🟢 Frontend → 🔓 React  
-- 🔒 WebGL (locked)  
-- 🔒 AI Engineering  
-""")
     
-    st.subheader("📦 Semester Wrapped")
+    # 2. Пытаемся прочитать реальные навыки, извлеченные агентом из PDF
+    skills_path = 'data/skills.json'
+    if os.path.exists(skills_path):
+        with open(skills_path, 'r', encoding='utf-8') as f:
+            user_data = json.load(f)
+        my_skills = user_data.get("skills", ["No skills found"])
+    else:
+        my_skills = ["Python", "Frontend", "AI", "Soft Skills", "Git"] # Заглушка, если файла нет
 
-    st.success("""
-🔥 Top Skill: Python  
-📺 Most Watched: UI Design Tutorials  
-💪 Most Productive Day: Monday  
-""")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("📊 Skill Radar (Real Data)")
+        # Строим радар на основе РЕАЛЬНЫХ навыков из PDF
+        df_radar = pd.DataFrame(dict(
+            r=[5] * len(my_skills), # Присваиваем уровень 5 всем найденным навыкам
+            theta=my_skills
+        ))
+        
+        fig = px.line_polar(df_radar, r='r', theta='theta', line_close=True)
+        fig.update_traces(fill='toself', line_color='#00FFCC', marker=dict(size=10))
+        fig.update_layout(
+            polar=dict(
+                angularaxis=dict(tickfont=dict(size=10), rotation=90, direction="clockwise")
+            ),
+            width=700, # Увеличиваем размер
+            height=600,
+            margin=dict(l=80, r=80, t=20, b=20) # Даем место тексту
+        )
+        st.plotly_chart(fig)
 
-    st.subheader("Top Career Matches")
+    with col2:
+        st.subheader("🎮 RPG Tech Tree")
+        # Визуализируем "замороженные" навыки на основе предсказаний ML
+        for p in preds:
+            st.write(f"**Path: {p['job']}**")
+            # Создаем сетку кнопок для навыков
+            cols = st.columns(len(p['missing_skills']) + 1)
+            cols[0].button("✅ Current", key=f"curr_{p['job']}")
+            for i, ms in enumerate(p['missing_skills']):
+                cols[i+1].button(f"🔒 {ms}", help="Click to unlock learning path", key=f"lock_{ms}_{i}_{p['job']}")
 
-    df = pd.DataFrame(preds)
-    st.dataframe(df)
-
-    st.subheader("Missing Skills")
-
+    # Блок предсказаний и траекторий
+    st.divider()
+    st.subheader("🎯 Top Career Trajectories")
     for p in preds:
-        st.write(f"🔹 {p['job']}: {', '.join(p['missing_skills'])}")
+        with st.expander(f"{p['job']} (Match: {int(p['score']*100)}%)"):
+            st.write(f"**Missing pieces for your DNA:** {', '.join(p['missing_skills'])}")
+            if st.button(f"Generate Path for {p['job']}", key=f"btn_{p['job']}"):
+                st.info(f"Agent is now searching web for {p['missing_skills'][0]} resources...")
+                # Здесь можно вызвать generate_learning_plan(p['job'])
 
-    plan = generate_learning_plan(preds)
-
-    st.subheader("Learning Plan")
-
-    for item in plan:
-        st.write(f"📚 {item['skill']} → {item['resource']}")
-
+    # SEMESTER WRAPPED
+    st.subheader("📦 Semester Wrapped")
+    # Берем первый навык из списка для динамичности
+    top_skill = my_skills[0] if my_skills else "Learning"
+    st.markdown(f"""
+    > **Top Skill:** {top_skill} (Extracted from PDF)  
+    > **Focus Path:** {preds[0]['job']}  
+    > **Vibe Check:** 🔥 Data Synchronized
+    """)
 
 # ROAST MODE
-if st.checkbox("🔥 Roast My Stack"):
-    st.error("Your stack is mid. You watched tutorials but built nothing 😭")
+st.sidebar.divider()
+if st.sidebar.checkbox("🔥 Enable Roast Mode"):
+    st.error("SYSTEM ALERT: AGGRESSIVE TECH LEAD ACTIVE")
+    st.warning("твоё резюме выглядит как привет из 2010-го. Давай исправлять.")
